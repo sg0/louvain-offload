@@ -1,10 +1,8 @@
 --------
 Contents
 --------
-This folder contains codes for implementing Half-approximate
-matching on a shared-memory system. Please review the following 
-paper for the serial algorithm, based on Manne-Bisseling: 
-http://www.staff.science.uu.nl/~bisse101/Articles/CP75.pdf
+This folder contains codes for implementing Louvain method for 
+graph community detection/clustering. 
 
 This code requires an OpenMP runtime and a and C++11 compliant 
 compiler for building. Experimental OpenMP offloading support is 
@@ -12,13 +10,6 @@ included (must pass -DUSE_OMP_OFFLOAD macro).
 
 Please contact the following for any queries or support:
 Sayan Ghosh, PNNL (sg0 at pnnl dot gov)
-
------
-Cite
------
-Sayan Ghosh, Mahantesh Halappanavar, Ananth Kalyanaraman, Arif Khan, Assefaw Gebremedhin. 
-Exploring MPI Communication Models for Graph Applications Using Graph Matching as a Case Study.
-33rd IEEE International Parallel and Distributed Processing Symposium (IPDPS 2019).
 
 -------
 Compile
