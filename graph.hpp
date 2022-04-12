@@ -28,7 +28,7 @@ class Graph
                 
         Graph(GraphElem nv): 
             nv_(nv), ne_(-1), 
-            edge_list_(nullptr), edge_list_(nullptr)
+            edge_list_(nullptr)
         {
             edge_indices_   = new GraphElem[nv_+1];
 #ifdef USE_OMP_OFFLOAD
@@ -556,7 +556,6 @@ class GenerateRGG
 #endif
                 for (GraphElem j = e0; j < e1; j++) {
                     Edge &edge = g->set_edge(j);
-                    g->edge_[j].edge_ = &edge;
 
                     assert(ePos == j);
                     assert(i == edgeList[ePos].ij_[0]);

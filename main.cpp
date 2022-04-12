@@ -11,7 +11,7 @@
 #include <string>
 
 #include "graph.hpp"
-#include "dspl.hpp"
+#include "louvain.hpp"
 
 unsigned seed;
 
