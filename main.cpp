@@ -11,6 +11,7 @@
 #include <string>
 
 #include "graph.hpp"
+#include "dspl.hpp"
 
 unsigned seed;
 
@@ -21,12 +22,13 @@ static int generateGraph = 0;
 static GraphWeight randomEdgePercent = 0.0;
 static bool randomNumberLCG = false;
 static bool isUnitEdgeWeight = false;
+static GraphWeight threshold = 1.0E-6;
 
 static void parseCommandLine(const int argc, char * const argv[]);
 
 int main(int argc, char *argv[])
 {
-    double t0, t1, td, td0, td1;
+    double t0, t1, td, td0, td1, tot_time;
     int max_threads, req_threads;
     
     max_threads = omp_get_max_threads();
@@ -78,25 +80,39 @@ int main(int argc, char *argv[])
     td1 = omp_get_wtime();
     std::cout << "Host to device graph data transfer time (in s): " << (td1 - td0) << std::endl;
 #endif
+   
+  GraphWeight currMod = -1.0;
+  GraphWeight prevMod = -1.0;
+  double total = 0.0;
+
+  int iters = 0;
     
-    t0 = omp_get_wtime();
-    g->maxematch();
-    t1 = omp_get_wtime();
-    double p_tot = t1 - t0;
+  t1 = omp_get_wtime();
 
-    std::cout << "Execution time (in s) for maximum edge matching: " 
-        << p_tot << std::endl;
-    std::cout << "#Edges in matched set: " << g->get_mcount() << std::endl;
+  currMod = louvainMethod(*g, currMod, threshold, iters);
 
-#if defined(CHECK_RESULTS)    
-    g->check_results();
-    g->print_M();
+  tot_time = omp_get_wtime() - t1;
+
+  if (!generateGraph) {
+    std::cout << "-------------------------------------------------------" << std::endl;
+    std::cout << "File: " << inputFileName << std::endl;
+    std::cout << "-------------------------------------------------------" << std::endl;
+  }
+  std::cout << "-------------------------------------------------------" << std::endl;
+
+#ifdef USE_32_BIT_GRAPH
+  std::cout << "32-bit datatype" << std::endl;
+#else
+  std::cout << "64-bit datatype" << std::endl;
 #endif
-#if defined(PRINT_RESULTS)    
-    g->print_M();
-#endif
- 
-    return 0;
+
+  std::cout << "-------------------------------------------------------" << std::endl;
+  std::cout << "Total time (in s): " << tot_time << std::endl;
+  std::cout << "Modularity, #Iterations: " << currMod << ", " << iters << std::endl;
+  std::cout << "MODS (final modularity * time): " << (currMod * tot_time) << std::endl;
+  std::cout << "-------------------------------------------------------" << std::endl;
+
+  return 0;
 }
 
 void parseCommandLine(const int argc, char * const argv[])
@@ -112,7 +128,7 @@ void parseCommandLine(const int argc, char * const argv[])
   }
   else
   {
-      while ((ret = getopt(argc, argv, "f:n:lp:uh")) != -1) 
+      while ((ret = getopt(argc, argv, "f:n:lt:p:uh")) != -1) 
       {
           switch (ret) {
               case 'f':
@@ -122,6 +138,9 @@ void parseCommandLine(const int argc, char * const argv[])
                   nvRGG = atol(optarg);
                   if (nvRGG > 0)
                       generateGraph = true; 
+                  break;
+              case 't':
+                  threshold = atof(optarg);
                   break;
               case 'l':
                   randomNumberLCG = true;

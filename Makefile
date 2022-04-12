@@ -1,5 +1,5 @@
 ENABLE_OMP_OFFLOAD=0
-CXX = g++-10
+CXX = clang++
 ifeq ($(ENABLE_OMP_OFFLOAD),1)
 #CXX = clang++
 CXX = nvc++
