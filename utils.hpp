@@ -60,15 +60,6 @@ struct Edge
 };
 #endif
 
-struct EdgeActive
-{
-    Edge* edge_;
-    bool active_;
-
-    EdgeActive(Edge* edge): edge_(edge), active_(true) {}
-    EdgeActive(): edge_(nullptr), active_(true) {}
-};
-
 struct EdgeTuple
 {
     GraphElem ij_[2];
