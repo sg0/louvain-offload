@@ -397,8 +397,8 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
 #if defined(USE_OMP_OFFLOAD)
 #pragma omp target teams distribute parallel for map(                          \
     to                                                                         \
-    : d_edge_indices [0:g.edge_indices_.size()],                              \
-      d_edge_list [0:g.edge_list_.size()],      \
+    : d_edge_indices [0:nv],                              \
+      d_edge_list [0:g.get_ne()],      \
       d_currComm [0:nv], d_vDegree [0:nv], d_localCinfo [0:nv])                \
     map(from                                                                   \
         : d_targetComm [0:nv])                                                 \

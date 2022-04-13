@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     td0 = omp_get_wtime();
     const GraphElem nv = g->get_nv();
     const GraphElem ne = g->get_ne();
-#pragma omp target update to(g->edge_indices_[0:nv+1], g->edge_list_[0:ne], g->edge_active_[0:ne])
+#pragma omp target update to(g->edge_indices_[0:nv+1], g->edge_list_[0:ne])
     td1 = omp_get_wtime();
     std::cout << "Host to device graph data transfer time (in s): " << (td1 - td0) << std::endl;
 #endif
