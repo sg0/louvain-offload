@@ -371,10 +371,6 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
   Comm *d_localCupdate = &localCupdate[0];
   GraphWeight *d_clusterWeight = &clusterWeight[0];
 
-  double size = sizeof(GraphElem) *
-                    (nv + 2 * nv) +
-                sizeof(Edge) * g.get_ne() +
-                sizeof(GraphWeight) * 2 * nv + sizeof(Comm) * 2 * nv;
   double t_start = omp_get_wtime();
 
   // start Louvain iteration
@@ -397,7 +393,7 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
 #if defined(USE_OMP_OFFLOAD)
 #pragma omp target teams distribute parallel for map(                          \
     to                                                                         \
-    : d_edge_indices [0:nv],                              \
+    : d_edge_indices [0:nv+1],                              \
       d_edge_list [0:g.get_ne()],      \
       d_currComm [0:nv], d_vDegree [0:nv], d_localCinfo [0:nv])                \
     map(from                                                                   \
