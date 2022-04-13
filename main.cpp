@@ -34,9 +34,9 @@ int main(int argc, char *argv[])
     max_threads = omp_get_max_threads();
 #pragma omp parallel
     {
+#pragma omp single
 	    req_threads = omp_get_num_threads();
     }
-    std::cout << "Maximum threads: " << max_threads << ", requested threads: " << req_threads << std::endl;
     
     // command line options
     parseCommandLine(argc, argv);
@@ -66,10 +66,10 @@ int main(int argc, char *argv[])
     td = td1 - td0;
 
     if (!generateGraph)
-        std::cout << "Time to read input file and create distributed graph (in s): " 
+        std::cout << "Time to read input file and create graph (in s): " 
             << td << std::endl;
     else
-        std::cout << "Time to generate distributed graph of " 
+        std::cout << "Time to generate graph of " 
             << nvRGG << " vertices (in s): " << td << std::endl;
 
 #ifdef USE_OMP_OFFLOAD
@@ -95,7 +95,8 @@ int main(int argc, char *argv[])
 
   if (!generateGraph) {
     std::cout << "-------------------------------------------------------" << std::endl;
-    std::cout << "File: " << inputFileName << std::endl;
+    std::cout << "Maximum threads: " << max_threads << ", requested threads: " << req_threads << std::endl;
+    std::cout << "Input file: " << inputFileName << std::endl;
     std::cout << "-------------------------------------------------------" << std::endl;
   }
   std::cout << "-------------------------------------------------------" << std::endl;

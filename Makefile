@@ -20,7 +20,7 @@ CXXFLAGS_THREADS += -fopenmp -DUSE_OMP_OFFLOAD
 #PE_MPICH_GTL_LIBS_amd_gfx90a="-lmpi_gtl_hsa"
 #LDFLAGS = -L${ROCM_PATH}/lib -lamdhip64
 else
-CXXFLAGS_THREADS = -fopenmp -DGRAPH_FT_LOAD=4 #-I/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include/
+CXXFLAGS_THREADS = -fopenmp -DGRAPH_FT_LOAD=1 #-I/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include/
 endif
 ifeq ($(SAVE_TEMPS),1)
 CXXFLAGS_THREADS += -save-temps
