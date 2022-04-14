@@ -224,11 +224,9 @@ void execLouvainIteration(const GraphElem i, const GraphElem *edge_indices, cons
   const GraphElem cc = currComm[i];
   GraphWeight ccDegree;
   GraphElem ccSize;  
-  bool currCommIsLocal = false; 
-  bool targetCommIsLocal = false;
 
-  ccDegree=localCinfo[cc].degree;
-  ccSize=localCinfo[cc].size;
+  ccDegree = localCinfo[cc].degree;
+  ccSize = localCinfo[cc].size;
 
   e0 = edge_indices[i];
   e1 = edge_indices[i+1];
@@ -343,10 +341,8 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
   std::vector<GraphWeight> clusterWeight;
   std::vector<Comm> localCinfo, localCupdate;
  
-  std::unordered_map<GraphElem, GraphElem> remoteComm;
-  std::map<GraphElem,Comm> remoteCinfo, remoteCupdate;
-  
   const GraphElem nv = g.get_nv();
+  const GraphElem ne = g.get_ne();
 
   GraphWeight constantForSecondTerm;
   GraphWeight prevMod = lower;
@@ -384,7 +380,7 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
 #if defined(USE_OMP_OFFLOAD)
 #else
 #pragma omp parallel default(shared) shared(clusterWeight, localCupdate, currComm, targetComm, \
-        vDegree, localCinfo, remoteComm, pastComm, g), \
+        vDegree, localCinfo, pastComm, g), \
     firstprivate(constantForSecondTerm)
 #endif
     {
@@ -393,8 +389,8 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
 #if defined(USE_OMP_OFFLOAD)
 #pragma omp target teams distribute parallel for map(                          \
     to                                                                         \
-    : d_edge_indices [0:nv+1],                              \
-      d_edge_list [0:g.get_ne()],      \
+    : d_edge_indices [0:nv+1],                                                 \
+      d_edge_list [0:ne],                                                      \
       d_currComm [0:nv], d_vDegree [0:nv], d_localCinfo [0:nv])                \
     map(from                                                                   \
         : d_targetComm [0:nv])                                                 \
