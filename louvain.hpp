@@ -163,7 +163,7 @@ GraphElem getMaxIndex(clmap_t *clmap, int &clmap_size, GraphWeight *counter, int
     maxIndex = currComm;
 
   return maxIndex;
-} // distGetMaxIndex
+} // getMaxIndex
 
 GraphWeight buildLocalMapCounter(const GraphElem e0, const GraphElem e1, clmap_t *clmap, int &clmap_size, 
     GraphWeight *counter, int &counter_size, const Edge *edge_list, const GraphElem *currComm,
@@ -383,7 +383,7 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
 
 #if defined(USE_OMP_OFFLOAD)
 #else
-#pragma omp parallel shared(clusterWeight, localCupdate, currComm, targetComm, \
+#pragma omp parallel default(shared) shared(clusterWeight, localCupdate, currComm, targetComm, \
         vDegree, localCinfo, remoteComm, pastComm, g), \
     firstprivate(constantForSecondTerm)
 #endif
