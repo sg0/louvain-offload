@@ -2,7 +2,8 @@
 Contents
 --------
 This folder contains codes for implementing Louvain method for 
-graph community detection/clustering. 
+graph community detection/clustering. Currently, it only 
+implements the first phase of Louvain.
 
 This code requires an OpenMP runtime and a and C++11 compliant 
 compiler for building. Experimental OpenMP offloading support is 
