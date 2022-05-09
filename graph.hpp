@@ -22,13 +22,10 @@
 class Graph
 {
     public:
-        Graph(): nv_(-1), ne_(-1), 
-                 edge_indices_(nullptr), edge_list_(nullptr)
+        Graph(): edge_indices_(nullptr), edge_list_(nullptr), nv_(-1), ne_(-1)
         {}
                 
-        Graph(GraphElem nv): 
-            nv_(nv), ne_(-1), 
-            edge_list_(nullptr)
+        Graph(GraphElem nv): edge_list_(nullptr), nv_(-1), ne_(-1)
         {
             edge_indices_   = new GraphElem[nv_+1];
 #ifdef USE_OMP_OFFLOAD
@@ -464,7 +461,6 @@ class GenerateRGG
 
                 unsigned rande_seed = (unsigned)(time(0)^getpid());
                 GraphWeight weight = 1.0;
-                std::hash<GraphElem> reh;
 
                 // cannot use genRandom if it's already been seeded
                 std::default_random_engine re(rande_seed); 

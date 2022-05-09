@@ -2,6 +2,24 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
+// --- Define team size: thread_limit for a team ---//
+#if defined (TS16)
+        #define TEAM_SIZE 16
+#elif defined (TS32)
+        #define TEAM_SIZE 32
+#elif defined (TS64)
+        #define TEAM_SIZE 64
+#elif defined (TS128)
+        #define TEAM_SIZE 128
+#elif defined (TS256)
+        #define TEAM_SIZE 256
+#elif defined (TS512)
+        #define TEAM_SIZE 512
+#else
+        #define TEAM_SIZE 32
+#endif
+
+
 #define PI                          (3.14159)
 #define MAX_PRINT_NEDGE             (100000)
 
@@ -120,7 +138,7 @@ class LCG
 {
     public:
         LCG(unsigned seed, GraphWeight* drand, GraphElem n) : 
-        seed_(seed), drand_(drand), n_(n)
+        seed_(seed), n_(n), drand_(drand)
         {
             // allocate long random numbers
             rnums_.resize(n_);

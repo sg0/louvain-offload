@@ -138,9 +138,10 @@ GraphElem getMaxIndex(clmap_t *clmap, int &clmap_size, GraphWeight *counter, int
   GraphElem maxSize = currSize; 
   GraphElem size = 0;
 
-  storedAlready = clmap;
+ // storedAlready = clmap;
 
-  do {
+  for(storedAlready = clmap; storedAlready != clmap + clmap_size; storedAlready++){
+  //do {
       if (currComm != storedAlready->f) {
           ay = localCinfo[storedAlready->f].degree;
           size = localCinfo[storedAlready->f].size;   
@@ -156,8 +157,8 @@ GraphElem getMaxIndex(clmap_t *clmap, int &clmap_size, GraphWeight *counter, int
               maxSize = size;
           }
       }
-      storedAlready++;
-  } while (storedAlready != clmap + clmap_size);
+      //storedAlready++;
+  } //while (storedAlready != clmap + clmap_size);
 
   if ((maxSize == 1) && (currSize == 1) && (maxIndex > currComm))
     maxIndex = currComm;
@@ -172,7 +173,6 @@ GraphWeight buildLocalMapCounter(const GraphElem e0, const GraphElem e1, clmap_t
   GraphElem numUniqueClusters = 1L;
   GraphWeight selfLoop = 0;
   clmap_t *storedAlready;
-
   for (GraphElem j = e0; j < e1; j++) {
         
     const Edge &edge = edge_list[j];
@@ -274,8 +274,10 @@ GraphWeight computeModularity(const Graph &g, Comm *localCinfo,
   const GraphElem nv = g.get_nv();
   GraphWeight le_xx = 0.0, la2_x = 0.0;
 
+	//map(to: clusterWeight[0:nv], localCinfo[0:nv]) 
 #if defined(USE_OMP_OFFLOAD)
-#pragma omp target teams distribute parallel for map(to: clusterWeight[0:nv], localCinfo[0:nv]) reduction(+: le_xx), reduction(+: la2_x)
+#pragma omp target teams distribute parallel for \
+	reduction(+: le_xx), reduction(+: la2_x)
 #elif defined(OMP_SCHEDULE_RUNTIME)
 #pragma omp parallel for shared(clusterWeight, localCinfo), \
   reduction(+: le_xx), reduction(+: la2_x) schedule(runtime)
@@ -300,10 +302,7 @@ GraphWeight computeModularity(const Graph &g, Comm *localCinfo,
 void updateLocalCinfo(const GraphElem nv, Comm *localCinfo, const Comm *localCupdate)
 {
 #if defined(USE_OMP_OFFLOAD)
-#pragma omp target teams distribute parallel for map(to                        \
-                                                     : localCupdate [0:nv])    \
-    map(tofrom                                                                 \
-        : localCinfo [0:nv])
+#pragma omp target teams distribute parallel for 
 #elif defined(OMP_SCHEDULE_RUNTIME)
 #pragma omp for schedule(runtime)
 #else
@@ -319,9 +318,7 @@ void cleanCWandCU(const GraphElem nv, GraphWeight *clusterWeight,
         Comm *localCupdate)
 {
 #if defined(USE_OMP_OFFLOAD)
-#pragma omp target teams distribute parallel for map(from                      \
-                                                     : clusterWeight [0:nv],   \
-                                                       localCupdate [0:nv])
+#pragma omp target teams distribute parallel for 
 #elif defined(OMP_SCHEDULE_RUNTIME)
 #pragma omp for schedule(runtime)
 #else
@@ -336,6 +333,8 @@ void cleanCWandCU(const GraphElem nv, GraphWeight *clusterWeight,
 
 GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWeight thresh, int &iters)
 {
+  // Times
+  double time_start[6], time_end[6];
   std::vector<GraphElem> pastComm, currComm, targetComm;
   std::vector<GraphWeight> vDegree;
   std::vector<GraphWeight> clusterWeight;
@@ -349,8 +348,10 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
   GraphWeight currMod = -1.0;
   int numIters = 0;
   
+  time_start[0] = omp_get_wtime(); 
   initLouvain(g, pastComm, currComm, vDegree, clusterWeight, localCinfo, 
           localCupdate, constantForSecondTerm);
+  time_end[0] = omp_get_wtime() - time_start[0];
   targetComm.resize(nv);
 
 #ifdef DEBUG_PRINTF  
@@ -368,15 +369,21 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
   GraphWeight *d_clusterWeight = &clusterWeight[0];
 
   double t_start = omp_get_wtime();
+#if defined(USE_OMP_OFFLOAD)
+#pragma omp target enter data map(to: d_clusterWeight[0:nv], d_localCupdate[0:nv])
+#pragma omp target enter data map(to: d_edge_indices[0:nv+1], d_edge_list[0:ne], d_vDegree[0:nv], d_localCinfo[0:nv])
+//#pragma omp target enter data map(to: d_targetComm[0:nv])
+#endif
 
   // start Louvain iteration
-  while(true) {
+  while(true) 
+  {
 #ifdef DEBUG_PRINTF  
     double t2 = omp_get_wtime();
     std::cout << "Starting Louvain iteration: " << numIters << std::endl;
 #endif
     numIters++;
-
+	time_start[1] = omp_get_wtime();
 #if defined(USE_OMP_OFFLOAD)
 #else
 #pragma omp parallel default(shared) shared(clusterWeight, localCupdate, currComm, targetComm, \
@@ -385,17 +392,14 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
 #endif
     {
         cleanCWandCU(nv, d_clusterWeight, d_localCupdate);
-
+      time_end[1] += (omp_get_wtime() - time_start[1]);
+      time_start[2] = omp_get_wtime();
 #if defined(USE_OMP_OFFLOAD)
-#pragma omp target teams distribute parallel for map(                          \
-    to                                                                         \
-    : d_edge_indices [0:nv+1],                                                 \
-      d_edge_list [0:ne],                                                      \
-      d_currComm [0:nv], d_vDegree [0:nv], d_localCinfo [0:nv])                \
-    map(from                                                                   \
-        : d_targetComm [0:nv])                                                 \
-        map(tofrom                                                             \
-            : d_localCupdate [0:nv], d_clusterWeight [0:nv])
+#pragma omp target teams distribute parallel for \
+	map(to: d_currComm [0:nv]) \
+    	map(from: d_targetComm [0:nv])\
+	thread_limit(TEAM_SIZE)
+  	//tile size(64)
 #elif defined(OMP_SCHEDULE_RUNTIME)
 #pragma omp for schedule(runtime)
 #else
@@ -405,8 +409,9 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
             execLouvainIteration(i, d_edge_indices, d_edge_list, d_currComm, d_targetComm, d_vDegree, d_localCinfo, 
                     d_localCupdate, constantForSecondTerm, d_clusterWeight);
         }
+      time_end[2] += (omp_get_wtime() - time_start[2]);
     }
-
+     time_start[3] = omp_get_wtime();
 #if defined(USE_OMP_OFFLOAD)
 #else
 #pragma omp parallel shared(localCinfo, localCupdate)
@@ -415,8 +420,11 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
         updateLocalCinfo(nv, d_localCinfo, d_localCupdate);
     }
 
+      time_end[3] += (omp_get_wtime() - time_start[3]);
+      time_start[4] = omp_get_wtime();
     // compute modularity
     currMod = computeModularity(g, d_localCinfo, d_clusterWeight, constantForSecondTerm);
+      time_end[4] += (omp_get_wtime() - time_start[4]);
 
     // exit criteria
     if (currMod - prevMod < thresh)
@@ -426,6 +434,7 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
     if (prevMod < lower)
         prevMod = lower;
 
+    time_start[5] = omp_get_wtime();
 #ifdef OMP_SCHEDULE_RUNTIME
 #pragma omp parallel for \
     shared(pastComm, d_currComm, d_targetComm) \
@@ -441,8 +450,18 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
         d_currComm[i] = d_targetComm[i];
         d_targetComm[i] = tmp;
     }
+    
+      time_end[5] += (omp_get_wtime() - time_start[5]);
+
+	
   } // end of Louvain iteration
   
+  std::cout << "Louvain initLouvain time: " << time_end[0] << std::endl;
+  std::cout << "Louvain cleanCWandCU time: " << time_end[1] << std::endl;
+  std::cout << "Louvain execLouvainIteration time: " << time_end[2] << std::endl;
+  std::cout << "Louvain updateLocalCinfo time: " << time_end[3] << std::endl;
+  std::cout << "Louvain computeModularity time: " << time_end[4] << std::endl;
+  std::cout << "Louvain update time (host): " << time_end[5] << std::endl;
   std::cout << "Louvain execution time: " << omp_get_wtime() - t_start << std::endl;
 
 
