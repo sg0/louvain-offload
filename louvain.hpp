@@ -39,14 +39,54 @@ struct clmap_t {
 #define CLMAP_MAX_NUM 32
 #define COUNT_MAX_NUM 32
 
+#if !defined(USE_OMP_OFFLOAD) && defined(ZFILL_CACHE_LINES) && defined(__ARM_ARCH) && __ARM_ARCH >= 8
+#ifndef CACHE_LINE_SIZE_BYTES
+#define CACHE_LINE_SIZE_BYTES   256
+#endif
+/* The zfill distance must be large enough to be ahead of the L2 prefetcher */
+static const int ZFILL_DISTANCE = 100;
+
+/* x-byte cache lines */
+static const int ELEMS_PER_CACHE_LINE = CACHE_LINE_SIZE_BYTES / sizeof(GraphWeight);
+
+/* Offset from a[j] to zfill */
+static const int ZFILL_OFFSET = ZFILL_DISTANCE * ELEMS_PER_CACHE_LINE;
+
+static inline void zfill(GraphWeight * a) 
+{ asm volatile("dc zva, %0": : "r"(a)); }
+#endif
+
 void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vector<Comm> &localCinfo)
 {
   const GraphElem nv = g.get_nv();
 
-#ifdef OMP_SCHEDULE_RUNTIME
-#pragma omp parallel for default(none), shared(g, vDegree, localCinfo), schedule(runtime)
+#ifdef ZFILL_CACHE_LINES
+  GraphElem NV_blk_sz = nv / ELEMS_PER_CACHE_LINE;
+#pragma omp parallel for default(none), shared(g, vDegree, localCinfo), firstprivate(nv, NV_blk_sz) schedule(static)
+  for (GraphElem b=0; b < NV_blk_sz; b++) {
+	  GraphElem NV_beg = b * NV_blk_sz;
+	  GraphElem NV_end = std::min(nv, ((b + 1) * NV_blk_sz) );
+	  GraphWeight * const zfill_limit = vDegree.data() + NV_end - ZFILL_OFFSET;
+	  
+	  for (GraphElem i = NV_beg; i < NV_end ; i+=ELEMS_PER_CACHE_LINE) {                                  
+		  if (vDegree.data() + i + ZFILL_OFFSET < zfill_limit)
+			  zfill(vDegree.data()+ i + ZFILL_OFFSET);
+
+		  for(GraphElem j=0; j < ELEMS_PER_CACHE_LINE; j++) {  
+			  for (GraphElem e = g.edge_indices_[i+j]; e < g.edge_indices_[i+j+1]; e++) {
+				  Edge const& edge = g.edge_list_[e];
+				  vDegree[i+j] += edge.weight_;
+			  }
+		  }
+		  localCinfo[i].degree = vDegree[i];
+		  localCinfo[i].size = 1L;
+	  }
+  }
 #else
-#pragma omp parallel for default(none), shared(g, vDegree, localCinfo), firstprivate(nv) schedule(guided)
+#ifdef OMP_SCHEDULE_RUNTIME
+#pragma omp parallel for default(none), shared(g, vDegree, localCinfo), schedule(guided)
+#else
+#pragma omp parallel for default(none), shared(g, vDegree, localCinfo), firstprivate(nv) schedule(static)
 #endif
   for (GraphElem i = 0; i < nv; i++) {
     GraphElem e0, e1;
@@ -60,10 +100,11 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
     }
 
     vDegree[i] = tw;
-   
-    localCinfo[i].degree = tw;
+
+    localCinfo[i].degree = vDegree[i];
     localCinfo[i].size = 1L;
   }
+#endif
 } // sumVertexDegree
 
 GraphWeight calcConstantForSecondTerm(const std::vector<GraphWeight> &vDegree)
@@ -341,7 +382,6 @@ GraphWeight louvainMethod(const Graph &g, const GraphWeight lower, const GraphWe
   std::vector<Comm> localCinfo, localCupdate;
  
   const GraphElem nv = g.get_nv();
-  const GraphElem ne = g.get_ne();
 
   GraphWeight constantForSecondTerm;
   GraphWeight prevMod = lower;

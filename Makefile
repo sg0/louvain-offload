@@ -2,13 +2,13 @@
 # Compiler Options
 #===============================================================================
 
-COMPILER    = llvm_nv
+COMPILER    = armcpu
 OPTIMIZE    = yes
 DEBUG       = no
 PROFILE     = no
 SM = cc70   # --- NVIDIA arch
 ARCH = gfx90a # --- AMD arch
-ENABLE_OMP_OFFLOAD = 1
+ENABLE_OMP_OFFLOAD = 0
 SAVE_TEMP = 0
 
 #===============================================================================
@@ -31,17 +31,28 @@ LDFLAGS = -lm
 
 OPTFLAGS = -DPRINT_DIST_STATS -DPRINT_EXTRA_NEDGES
 
+# ARM Compiler
+ifeq ($(COMPILER),armcpu)
+  CC = armclang++
+  CFLAGS +=-Ofast -fopenmp -mcpu=native -DZFILL_CACHE_LINES
+endif
+
+ifeq ($(COMPILER),gnucpu)
+  CC = g++
+  CFLAGS +=-O3 -fopenmp #-DZFILL_CACHE_LINES
+endif
+
 # GCC Compiler
 ifeq ($(COMPILER),gnu)
-  CC = gcc
+  CC = g++
 ifeq ($(ENABLE_OMP_OFFLOAD),1)
-  CFLAGS += -fopenmp -flto
+  CFLAGS += -O3 -fopenmp -flto
 endif
 endif
 
 # Intel Compiler
 ifeq ($(COMPILER),intel)
-  CC = icx 
+  CC = icpx 
 ifeq ($(ENABLE_OMP_OFFLOAD),1)
   CFLAGS += -fiopenmp -fopenmp-targets=spir64 -D__STRICT_ANSI__ 
 endif
@@ -98,14 +109,14 @@ endif
 
 # Optimization Flags
 ifeq ($(OPTIMIZE),yes)
-  CFLAGS += -O3
+  CFLAGS += #-O3
 endif
 
 # Using device offload
 ifeq ($(ENABLE_OMP_OFFLOAD),1)
   CFLAGS += -DUSE_OMP_OFFLOAD
 else
-  CFLAGS += -fopenmp -DGRAPH_FT_LOAD=1 #-I/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include/
+  CFLAGS += -fopenmp -DGRAPH_FT_LOAD=4 #-I/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include/
 endif
 
 # Compiler Trace  
@@ -113,9 +124,10 @@ ifeq ($(SAVE_TEMPS),1)
 CFLAGS += -save-temps
 endif
 
-TS=32
 
 # Team size
+ifeq ($(ENABLE_OMP_OFFLOAD),1)
+	TS=32
 ifeq ($(TS), 16)
   OPTFLAGS += -DTS16
 else ifeq ($(TS), 32)
@@ -131,8 +143,9 @@ else ifeq ($(TS), 512)
 else
   OPTFLAGS += -DTS32
 endif
-
 TARGET := $(TARGET)_$(TS)
+endif
+
 
 #===============================================================================
 # Targets to Build
