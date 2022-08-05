@@ -63,23 +63,25 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
 #ifdef ZFILL_CACHE_LINES
   GraphElem NV_blk_sz = nv / ELEMS_PER_CACHE_LINE;
 #pragma omp parallel for default(none), shared(g, vDegree, localCinfo), firstprivate(nv, NV_blk_sz) schedule(static)
-  for (GraphElem b=0; b < NV_blk_sz; b++) {
-	  GraphElem NV_beg = b * NV_blk_sz;
-	  GraphElem NV_end = std::min(nv, ((b + 1) * NV_blk_sz) );
-	  GraphWeight * const zfill_limit = vDegree.data() + NV_end - ZFILL_OFFSET;
+  for (GraphElem i=0; i < NV_blk_sz; i++) {
+	  GraphElem NV_beg = i * ELEMS_PER_CACHE_LINE;
+	  GraphElem NV_end = std::min(nv, ((i + 1) * ELEMS_PER_CACHE_LINE) );
 	  
-	  for (GraphElem i = NV_beg; i < NV_end ; i+=ELEMS_PER_CACHE_LINE) {                                  
-		  if (vDegree.data() + i + ZFILL_OFFSET < zfill_limit)
-			  zfill(vDegree.data()+ i + ZFILL_OFFSET);
+	  GraphWeight * const zfill_limit = vDegree.data() + NV_end - ZFILL_OFFSET;
+	  GraphWeight * const vDeg = vDegree.data() + NV_beg;
 
-		  for(GraphElem j=0; j < ELEMS_PER_CACHE_LINE; j++) {  
-			  for (GraphElem e = g.edge_indices_[i+j]; e < g.edge_indices_[i+j+1]; e++) {
-				  Edge const& edge = g.edge_list_[e];
-				  vDegree[i+j] += edge.weight_;
-			  }
+	  if (vDeg + ZFILL_OFFSET < zfill_limit)
+		  zfill(vDeg + ZFILL_OFFSET);
+
+	  for(GraphElem j = 0; j < ELEMS_PER_CACHE_LINE; j++) {  
+		  GraphElem e0, e1;
+		  g.edge_range(NV_beg + j, e0, e1);
+		  for (GraphElem e = e0; e < e1; e++) {
+			  Edge const& edge = g.get_edge(e);
+			  vDeg[j] += edge.weight_;
 		  }
-		  localCinfo[i].degree = vDegree[i];
-		  localCinfo[i].size = 1L;
+		  localCinfo[NV_beg + j].degree = vDeg[j];
+		  localCinfo[NV_beg + j].size = 1L;
 	  }
   }
 #else
@@ -90,16 +92,13 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
 #endif
   for (GraphElem i = 0; i < nv; i++) {
     GraphElem e0, e1;
-    GraphWeight tw = 0.0;
 
     g.edge_range(i, e0, e1);
 
     for (GraphElem k = e0; k < e1; k++) {
       const Edge &edge = g.get_edge(k);
-      tw += edge.weight_;
+      vDegree[i] += edge.weight_;
     }
-
-    vDegree[i] = tw;
 
     localCinfo[i].degree = vDegree[i];
     localCinfo[i].size = 1L;

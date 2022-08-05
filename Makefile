@@ -34,7 +34,7 @@ OPTFLAGS = -DPRINT_DIST_STATS -DPRINT_EXTRA_NEDGES
 # ARM Compiler
 ifeq ($(COMPILER),armcpu)
   CC = armclang++
-  CFLAGS +=-Ofast -fopenmp -mcpu=native -DZFILL_CACHE_LINES
+  CFLAGS +=-Ofast -fopenmp -mcpu=a64fx #-DZFILL_CACHE_LINES
 endif
 
 ifeq ($(COMPILER),gnucpu)
