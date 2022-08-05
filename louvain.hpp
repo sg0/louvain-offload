@@ -76,6 +76,7 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
 	  for(GraphElem j = 0; j < ELEMS_PER_CACHE_LINE; j++) {  
 		  GraphElem e0, e1;
 		  g.edge_range(NV_beg + j, e0, e1);
+		  
 		  for (GraphElem e = e0; e < e1; e++) {
 			  Edge const& edge = g.get_edge(e);
 			  vDeg[j] += edge.weight_;
