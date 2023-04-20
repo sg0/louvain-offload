@@ -47,12 +47,12 @@ struct clmap_t {
 static const int ZFILL_DISTANCE = 100;
 
 /* x-byte cache lines */
-static const int ELEMS_PER_CACHE_LINE = CACHE_LINE_SIZE_BYTES / sizeof(GraphWeight);
+static const int ELEMS_PER_CACHE_LINE = CACHE_LINE_SIZE_BYTES / sizeof(GraphElem);
 
 /* Offset from a[j] to zfill */
 static const int ZFILL_OFFSET = ZFILL_DISTANCE * ELEMS_PER_CACHE_LINE;
 
-static inline void zfill(GraphWeight * a) 
+static inline void zfill(Comm * a) 
 { asm volatile("dc zva, %0": : "r"(a)); }
 #endif
 
@@ -67,11 +67,10 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
 	  GraphElem NV_beg = i * ELEMS_PER_CACHE_LINE;
 	  GraphElem NV_end = std::min(nv, ((i + 1) * ELEMS_PER_CACHE_LINE) );
 	  
-	  GraphWeight * const zfill_limit = vDegree.data() + NV_end - ZFILL_OFFSET;
-	  GraphWeight * const vDeg = vDegree.data() + NV_beg;
-
-	  if (vDeg + ZFILL_OFFSET < zfill_limit)
-		  zfill(vDeg + ZFILL_OFFSET);
+	  Comm * const zfill_limit = localCinfo.data() + NV_beg + NV_end - ZFILL_OFFSET;
+	  Comm * __restrict const zlocalCinfo = localCinfo.data() + NV_beg;
+	  if (zlocalCinfo + ZFILL_OFFSET < zfill_limit)
+		  zfill(zlocalCinfo + ZFILL_OFFSET);
 
 	  for(GraphElem j = 0; j < ELEMS_PER_CACHE_LINE; j++) {  
 		  GraphElem e0, e1;
@@ -79,10 +78,10 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
 		  
 		  for (GraphElem e = e0; e < e1; e++) {
 			  Edge const& edge = g.get_edge(e);
-			  vDeg[j] += edge.weight_;
+			  vDegree[NV_beg + j] += edge.weight_;
 		  }
-		  localCinfo[NV_beg + j].degree = vDeg[j];
-		  localCinfo[NV_beg + j].size = 1L;
+		  zlocalCinfo[j].degree = vDegree[NV_beg + j];
+		  zlocalCinfo[j].size = 1L;
 	  }
   }
 #else
