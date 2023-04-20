@@ -61,27 +61,36 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
   const GraphElem nv = g.get_nv();
 
 #ifdef ZFILL_CACHE_LINES
-  GraphElem NV_blk_sz = nv / ELEMS_PER_CACHE_LINE;
-#pragma omp parallel for default(none), shared(g, vDegree, localCinfo), firstprivate(nv, NV_blk_sz) schedule(static)
-  for (GraphElem i=0; i < NV_blk_sz; i++) {
-	  GraphElem NV_beg = i * ELEMS_PER_CACHE_LINE;
-	  GraphElem NV_end = std::min(nv, ((i + 1) * ELEMS_PER_CACHE_LINE) );
-	  
-	  Comm * const zfill_limit = localCinfo.data() + NV_beg + NV_end - ZFILL_OFFSET;
-	  Comm * __restrict const zlocalCinfo = localCinfo.data() + NV_beg;
-	  if (zlocalCinfo + ZFILL_OFFSET < zfill_limit)
-		  zfill(zlocalCinfo + ZFILL_OFFSET);
+#pragma omp parallel shared(g, vDegree, localCinfo) 
+  {
+	  int const tid = omp_get_thread_num();
+	  int const nthreads = omp_get_num_threads();
+	  size_t chunk = nv / nthreads;
+	  size_t rem = 0;
+	  if (tid == nthreads - 1)
+		  rem += nv % nthreads;
 
-	  for(GraphElem j = 0; j < ELEMS_PER_CACHE_LINE; j++) {  
-		  GraphElem e0, e1;
-		  g.edge_range(NV_beg + j, e0, e1);
-		  
-		  for (GraphElem e = e0; e < e1; e++) {
-			  Edge const& edge = g.get_edge(e);
-			  vDegree[NV_beg + j] += edge.weight_;
+	  Comm * const zfill_limit = localCinfo.data() + (tid+1)*chunk + rem - ZFILL_OFFSET;
+
+#pragma omp for schedule(static)
+	  for (GraphElem i=0; i < nv; i+=ELEMS_PER_CACHE_LINE) {
+
+		  GraphElem const * __restrict__ const edge_indices_ = g.edge_indices_ + i;
+		  GraphWeight * __restrict__ const vDegree_ = vDegree.data() + i;
+		  Comm * __restrict__ const localCinfo_ = localCinfo.data() + i;
+
+		  if (localCinfo_ + ZFILL_OFFSET < zfill_limit)
+			  zfill(localCinfo_ + ZFILL_OFFSET);
+
+		  for(GraphElem j = 0; j < ELEMS_PER_CACHE_LINE; j++) { 
+			  if ((i + j) >= nv)
+				  break;
+			  for (GraphElem e = edge_indices_[j]; e < edge_indices_[j+1]; e++) {
+				  vDegree_[j] += g.edge_list_[e].weight_;
+			  }
+			  localCinfo_[j].degree = vDegree[j];
+			  localCinfo_[j].size = 1L;
 		  }
-		  zlocalCinfo[j].degree = vDegree[NV_beg + j];
-		  zlocalCinfo[j].size = 1L;
 	  }
   }
 #else
