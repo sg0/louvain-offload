@@ -72,12 +72,12 @@ void sumVertexDegree(const Graph &g, std::vector<GraphWeight> &vDegree, std::vec
 
 	  Comm * const zfill_limit = localCinfo.data() + (tid+1)*chunk + rem - ZFILL_OFFSET;
 
-#pragma omp for schedule(static)
+#pragma omp for
 	  for (GraphElem i=0; i < nv; i+=ELEMS_PER_CACHE_LINE) {
 
-		  GraphElem const * __restrict__ const edge_indices_ = g.edge_indices_ + i;
-		  GraphWeight * __restrict__ const vDegree_ = vDegree.data() + i;
-		  Comm * __restrict__ const localCinfo_ = localCinfo.data() + i;
+		  GraphElem const * const edge_indices_ = g.edge_indices_ + i;
+		  GraphWeight * const vDegree_ = vDegree.data() + i;
+		  Comm * const localCinfo_ = localCinfo.data() + i;
 
 		  if (localCinfo_ + ZFILL_OFFSET < zfill_limit)
 			  zfill(localCinfo_ + ZFILL_OFFSET);

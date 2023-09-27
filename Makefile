@@ -2,7 +2,7 @@
 # Compiler Options
 #===============================================================================
 
-COMPILER    = armcpu
+COMPILER    = fujitsu
 OPTIMIZE    = yes
 DEBUG       = no
 PROFILE     = no
@@ -24,12 +24,18 @@ TARGET = louvain_omp_$(COMPILER)
 #===============================================================================
 
 # Standard Flags
-CFLAGS := -std=c++11 -Wall
+CFLAGS := -std=c++11 #-Wall
 
 # Linker Flags
 LDFLAGS = -lm
 
 OPTFLAGS = -DPRINT_DIST_STATS -DPRINT_EXTRA_NEDGES
+
+# Fujitsu Compiler
+ifeq ($(COMPILER),fujitsu)
+  CC = FCC
+  CFLAGS +=-Kfast -Kopenmp -march=armv8.2-a -mcpu=a64fx #-DZFILL_CACHE_LINES 
+endif
 
 # ARM Compiler
 ifeq ($(COMPILER),armcpu)
@@ -116,7 +122,7 @@ endif
 ifeq ($(ENABLE_OMP_OFFLOAD),1)
   CFLAGS += -DUSE_OMP_OFFLOAD
 else
-  CFLAGS += -fopenmp -DGRAPH_FT_LOAD=4 #-I/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include/
+  CFLAGS += -DGRAPH_FT_LOAD=4 #-I/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include/
 endif
 
 # Compiler Trace  

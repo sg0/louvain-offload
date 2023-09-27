@@ -268,8 +268,8 @@ class BinaryEdgeList
             offset = 2*sizeof(GraphElem) + (M_+1)*sizeof(GraphElem) + g->edge_indices_[0]*(sizeof(Edge));
 
 #if defined(GRAPH_FT_LOAD)
-            ptrdiff_t currpos = file.tellg();
-            ptrdiff_t idx = 0;
+            GraphElem currpos = file.tellg();
+            GraphElem idx = 0;
             GraphElem* vidx = (GraphElem*)malloc(M_ * sizeof(GraphElem));
 
             const int num_sockets = (GRAPH_FT_LOAD == 0) ? 1 : GRAPH_FT_LOAD;
@@ -284,8 +284,8 @@ class BinaryEdgeList
                 for (int b=0; b<n_blocks; b++) 
                 {
 
-                    long NV_beg = b * NV_blk_sz;
-                    long NV_end = std::min(M_, ((b+1) * NV_blk_sz) );
+                    GraphElem NV_beg = b * NV_blk_sz;
+                    GraphElem NV_end = std::min(M_, ((b+1) * NV_blk_sz) );
                     int tid_doit = b * tid_blk_sz;
 
                     if (omp_get_thread_num() == tid_doit) 
@@ -296,7 +296,7 @@ class BinaryEdgeList
                             // ensure first-touch allocation
                             // read and initialize using your code
                             vidx[i] = idx;
-                            const GraphElem vcount = g->edge_indices_[i+1] - g->edge_indices_[i];
+                            const GraphElem vcount = g->edge_indices_[i+1] - g->edge_indices_[i] + 1;
                             idx += vcount;
                             file.seekg(currpos + vidx[i] * sizeof(Edge), std::ios::beg);
                             file.read(reinterpret_cast<char*>(&g->edge_list_[vidx[i]]), sizeof(Edge) * (vcount));
